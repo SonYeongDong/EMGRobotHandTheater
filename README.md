@@ -8,14 +8,14 @@ EMG 암밴드를 착용한 사람이 손짓하면, 로봇손이 손가락에 연
 2. **파트 2 · 로봇손 통합 제어** — 전달받은 번호에 맞는 공연 파일을 골라 로봇손에서 반복 재생합니다. 다른 번호가 들어오면 진행 중인 카드를 마치고 새 장면으로 전환합니다.
 3. **파트 3 · 인형 동작 제작** — uHandMotionCreator로 손짓마다 어떤 인형 동작을 보여줄지 정하고, 통합 프로그램이 재생할 여덟 개의 공연 파일(`.uhjson`)을 만듭니다.
 
-**현재 이 저장소에는 파트 2가 구현되어 있습니다.** 파트 1 팀원은 EMG 분류 모델을, 파트 3 팀원은 실제 공연에 쓸 동작 파일을 추가할 예정입니다.
+**현재 이 저장소에는 파트 1과 파트 2가 구현되어 있고, 파트 3의 공연 파일 8개가 들어 있습니다.**
 
 예를 들어 사람이 주먹을 쥐면 분류기가 숫자 `6`을 보냅니다. 프로그램은 `sequences/action_06.uhjson`을 골라 반복 재생합니다. 그 파일에 인형이 인사하는 동작을 넣었다면, 주먹을 쥐고 있는 동안 인형이 인사합니다.
 
 ## 처음 실행해 보기
 
 1. **Python 3.10 이상**을 준비합니다. 프로젝트 전체를 클론하거나 ZIP을 받아 압축을 풉니다. `main.py`, `Setup.ini`, `third_party`가 보이는 폴더에서 터미널을 엽니다.
-2. 아래 명령 하나를 실행합니다. 파트 2에는 추가 패키지 설치가 필요 없습니다. uHandClientModule 1.0.1이 함께 들어 있습니다.
+2. 아래 명령 하나를 실행합니다. 파트 2에는 추가 패키지 설치가 필요 없습니다. uHandClientModule 1.0.1이 함께 들어 있습니다. 암밴드로 실제 분류를 하려면 먼저 `python -m pip install -r requirements.txt`로 파트 1의 패키지(numpy, pyserial, scikit-learn, joblib)를 설치합니다.
 
    ```sh
    python main.py
@@ -23,7 +23,7 @@ EMG 암밴드를 착용한 사람이 손짓하면, 로봇손이 손가락에 연
 
    Mac 등에서 Python 3 명령이 `python3`이면 `python3 main.py`로 실행합니다.
 3. 콘솔에 프로그램 버전, 읽은 설정 파일의 경로, 서버 주소, 동작 파일 로드 결과가 표시됩니다. 기본 서버 주소는 실물 로봇손의 `192.168.61.1:5000`입니다. 서버가 꺼져 있으면 연결을 재시도합니다.
-4. **첫 실행에서 ‘순환 시험 꺼짐’, ‘EMG 입력 대기’가 나오면 정상입니다.** 실제 분류기를 연결하기 전에는 공연 동작을 시작하지 않습니다. 서버와 연결할 때는 서버 자체가 준비 자세로 복귀하고 연결음을 냅니다.
+4. **첫 실행에서 ‘순환 시험 꺼짐’, ‘EMG 입력 대기’가 나오면 정상입니다.** 이어서 모델 이름과 암밴드 포트가 표시됩니다. 암밴드 수신기가 꽂혀 있지 않으면 찾을 때까지 기다리며, 그동안 공연 동작은 시작하지 않습니다. 서버와 연결할 때는 서버 자체가 준비 자세로 복귀하고 연결음을 냅니다.
 5. 종료할 때는 터미널에서 **Ctrl+C**를 누릅니다. 진행 중인 로봇 명령을 마치고 두 워커와 연결을 정리합니다.
 
 ### 장비 없이 첫 동작 보기
@@ -42,7 +42,7 @@ EMG 암밴드를 착용한 사람이 손짓하면, 로봇손이 손가락에 연
 
 <img src="docs/images/emg-armband.png" width="220" alt="이번 프로젝트에서 손짓의 근육 신호를 측정하는 EMG 암밴드">
 
-파트 1 팀원은 [emg_worker.py](emg_thread/emg_worker.py)의 `run_emg_worker(stop)`에 암밴드 신호 읽기와 분류 로직을 넣습니다. 새 신호를 분류할 때마다 `robot_hand_control.set_action(int(label))`을 호출하세요. 예를 들어 주먹을 인식하면 `6`을 보냅니다. 같은 손짓을 유지하는 동안에도 새 분류 결과를 계속 보내야 합니다. [분류 함수 사용 예시](#파트-1--분류-결과를-보내는-방법)
+[emg_worker.py](emg_thread/emg_worker.py)의 `run_emg_worker(stop)`이 암밴드 신호를 읽고 모델로 분류해, 새 판정이 나올 때마다(초당 약 10회) `robot_hand_control.set_action(동작 ID)`를 호출합니다. 예를 들어 주먹을 인식하면 `6`을 보냅니다. 암밴드 수신기(CH340)를 USB에 꽂고 밴드를 켠 뒤 **모델을 학습할 때와 같은 위치**로 착용하세요. [파트 1의 동작과 설정](#파트-1--분류-결과를-보내는-방법)
 
 ### 2. 가상 서버와 실물 로봇손 중 하나 준비하기
 
@@ -67,36 +67,40 @@ uHandMotionCreator로 서버를 사용하고 있었다면 먼저 연결을 해�
 
 | 담당 | 열어 볼 위치 | 팀원이 추가할 내용 |
 | --- | --- | --- |
-| **파트 1 · EMG 분류** | [emg_thread/emg_worker.py](emg_thread/emg_worker.py)의 `run_emg_worker(stop)` | 암밴드 연결, 신호 처리, 모델 추론을 넣고 새 결과를 정수 ID로 전달합니다. |
+| **파트 1 · EMG 분류** | [emg_thread/](emg_thread/), [models/](models/) | 암밴드 연결, 신호 이상 감지, 모델 추론, 동작 확정을 하고 새 결과를 정수 ID로 전달합니다. |
 | **파트 2 · 통합 제어** | [common/robot_hand_control.py](common/robot_hand_control.py), [robot_thread/](robot_thread/) | 요청 ID 관리, 3초 입력 감시, 파일 로드, 연결·재접속, 카드 반복을 담당합니다. |
 | **파트 3 · 인형 동작** | [sequences/](sequences/) | uHandMotionCreator로 만든 파일 8개를 아래 표의 이름으로 복사합니다. Python 코드는 작성할 필요가 없습니다. |
 
 ### 파트 1 — 분류 결과를 보내는 방법
 
-1. `emg_thread/emg_worker.py`에서 **`run_emg_worker(stop)`** 함수를 찾습니다. 현재 이 함수는 `stop.wait()`로 기다립니다. **이 대기 부분을** 암밴드 읽기와 분류 반복문으로 교체합니다. 같은 파일의 `run_cycle_worker`는 장비 없는 시험에 사용됩니다.
-2. 모듈에서 제공하는 함수는 아래 두 개입니다. 별도 프로세스에서 호출하면 상태가 공유되지 않으므로, `main.py`가 시작한 EMG 워커 안에서 호출합니다.
+`main.py`가 시작한 EMG 워커가 아래 순서로 동작합니다. 코드는 [emg_thread/classifier.py](emg_thread/classifier.py)의 `EmgClassifier`에 있습니다.
 
-   ```python
-   from common import robot_hand_control as robot_hand
+1. **암밴드 연결** — 수신기(CH340)를 찾아 연결합니다. 찾지 못하거나 연결이 끊기면 2초마다 다시 시도합니다. 암밴드는 HEX 500 Hz 모드여야 합니다. ASCII 모드면 밴드 버튼을 한 번 눌러 바꿉니다.
+2. **분류** — `models/`의 랜덤포레스트 모델이 최근 500 ms의 8채널 신호로 여덟 가지 손짓의 확률을 냅니다(초당 약 10회).
+3. **동작 확정** — 새 손짓이 확률 60% 이상으로 3회 연속 나오면 그 손짓으로 바꿉니다. 두 손짓 사이에서 판정이 흔들릴 때 장면이 계속 바뀌는 것을 막습니다.
+4. **전달** — 새 판정이 나올 때마다 확정된 손짓의 ID로 `set_action`을 호출합니다. 같은 손짓을 유지하는 동안에도 계속 보내므로 통합 프로그램의 3초 입력 감시가 동작합니다.
+5. **신호 이상** — 연결 끊김, 수신 멈춤, ASCII 모드를 감지하면 `set_action(-1)`을 한 번 보내고, 신호가 정상으로 돌아올 때까지 아무것도 보내지 않습니다.
 
-   robot_hand.set_action(6)                      # 주먹 장면 요청
-   playing_id = robot_hand.get_current_action()   # 지금 재생하는 장면 확인
-   robot_hand.set_action(-1)                     # 정지 요청
-   ```
+`Setup.ini`에 `[emg]` 섹션을 추가해 바꿀 수 있습니다. 섹션이 없으면 아래 기본값을 씁니다.
 
-3. 위 코드는 함수 사용 예입니다. 실제 분류 루프에서는 아래처럼 **새 분류가 나올 때마다** 보냅니다. `read_new_prediction`은 팀원이 작성할 모델 함수의 예시 이름입니다.
+```ini
+[emg]
+port = auto
+model = 500그루
+min_prob = 0.6
+hold = 3
+```
 
-   ```python
-   def run_emg_worker(stop):
-       while not stop.is_set():
-           label = read_new_prediction(timeout=0.2)
-           if label is not None:
-               robot_hand_control.set_action(int(label))
-   ```
+| 키 | 기본값 | 용도 |
+| --- | --- | --- |
+| `port` | `auto` | `auto`는 수신기를 자동으로 찾습니다. `COM4`처럼 직접 지정할 수 있습니다. 암밴드 없이 시험할 때는 `demo`(합성 신호, 판정에 의미 없음) 또는 `replay:<녹화 세션 폴더>`(녹화한 신호를 반복 재생)를 씁니다. |
+| `model` | `500그루` | `models/`에서 이름에 이 글자가 들어간 모델 파일을 씁니다. `300그루`로 바꾸면 다른 파일을 씁니다. |
+| `min_prob` | `0.6` | 새 손짓으로 바꾸는 데 필요한 확률 |
+| `hold` | `3` | 그 확률이 연속으로 나와야 하는 횟수. 올리면 덜 흔들리고 0.1초씩 늦어집니다. |
 
-   파일에 이미 `from common import robot_hand_control`이 있습니다. 암밴드 읽기에 타임아웃을 두면 Ctrl+C로 종료할 수 있습니다. 암밴드 분리가 확인되면 `set_action(-1)`을 보내고, 모델 라이브러리는 실제 EMG 경로에서 불러오면 순환 시험을 독립적으로 실행할 수 있습니다.
-4. 같은 손짓을 유지해도 **새 신호로 분류한 결과는 계속 전달**합니다. 같은 ID라면 재생이 처음부터 다시 시작되지 않습니다. 반대로 새 신호가 없을 때 이전 값을 계속 보내면 입력 두절을 알아낼 수 없습니다.
-5. 실전에서는 `cycle_enabled = false`인지 확인합니다. `true`이면 순환 시험 워커만 실행됩니다.
+**모델 파일.** `models/`에는 같은 이름(`random_forest_500ms.joblib`)으로 전달받은 두 파일을 구분해 넣었습니다. 11-25 전달본은 나무 500그루, 11-22 zip에 든 것은 300그루입니다. 랜덤포레스트는 착용 보정이 없어 밴드 위치나 신호 중심값이 학습 때와 다르면 정확도가 크게 떨어집니다. `.joblib`은 읽을 때 코드를 실행할 수 있는 형식이라, scikit-learn 숲과 numpy 배열 클래스만 허용하는 방식으로 읽습니다.
+
+**함수.** 다른 분류기를 연결하거나 시험 코드를 작성할 때는 아래 두 함수를 씁니다. 별도 프로세스에서 호출하면 상태가 공유되지 않으므로 `main.py`가 시작한 EMG 워커 안에서 호출합니다.
 
 | 함수 | 입력·반환과 동작 |
 | --- | --- |
@@ -141,8 +145,9 @@ uHandMotionCreator로 서버를 사용하고 있었다면 먼저 연결을 해�
 | `[output] buzzer_enabled` | `true` | `false`이면 공연과 누락 알림음을 끕니다. 일반음의 대기 시간은 유지합니다. 서버 자체의 연결음 등은 서버가 재생합니다. |
 | `[debug] enabled` | `false` | `true`이면 시각, 요청 ID, 실제 재생 ID, 카드 진행을 출력합니다. |
 | `[test] cycle_enabled` | `false` | `true`이면 서버 준비 후 3초마다 다음 ID를 요청합니다. 재접속 후에는 첫 ID부터 시작합니다. |
+| `[emg]` 섹션 (선택) | 없음 | 암밴드 포트, 모델, 동작 확정 조건. [파트 1의 설정](#파트-1--분류-결과를-보내는-방법) |
 
-설정 파일이 없으면 기본값으로 생성합니다. 값이나 형식이 잘못됐으면 기존 내용을 `Setup.ini.<시각>.bak`에 보존하고 전체 기본값을 복원합니다. 주소가 유효하지만 접속만 실패하면 설정을 보존한 채 재시도합니다.
+설정 파일이 없으면 기본값으로 생성합니다. 값이나 형식이 잘못됐으면 기존 내용을 `Setup.ini.<시각>.bak`에 보존하고 전체 기본값을 복원합니다. 복원된 파일에는 `[emg]` 섹션이 없으므로 파트 1은 기본값으로 동작합니다. 한글 경로를 적을 때는 파일을 UTF-8로 저장하세요. 주소가 유효하지만 접속만 실패하면 설정을 보존한 채 재시도합니다.
 
 ## 폴더 한눈에 보기
 
@@ -152,6 +157,14 @@ Setup.ini                       팀원이 바꾸는 실행 설정
 common/settings.py              프로그램 버전, 분류 ID 이름, 설정 처리
 common/robot_hand_control.py    두 공개 함수와 스레드 간 공유 상태
 emg_thread/emg_worker.py        파트 1 실제 분류 진입점과 별도 순환 시험
+emg_thread/classifier.py        파트 1의 암밴드 → 모델 → 확정 동작 → 동작 ID
+emg_thread/emg_settings.py      Setup.ini의 [emg] 설정
+emg_thread/sensor/              암밴드 수신과 신호 이상 감지
+emg_thread/models/              모델 읽기와 특징 계산 (rf_features.py)
+emg_thread/decide/              동작 확정 (stabilizer.py)
+models/                         파트 1의 모델 파일 (*.joblib)
+requirements.txt                파트 1에 필요한 패키지
+tests/                          파트 1 테스트 (python -m unittest discover -s tests)
 robot_thread/sequence_loader.py 파일 검증, 카드 읽기, 누락 동작 생성
 robot_thread/robot_hand_worker.py  파트 2의 연결·재생·재접속
 sequences/                      파트 3의 공연 파일을 넣는 곳
@@ -162,7 +175,7 @@ third_party/uhand_client_module/   동봉한 uHandClientModule 1.0.1
 
 ## 검증 범위
 
-Windows에서 별도 패키지 없는 파트 2 실행, 설정 복구, 3초 입력 감시, 가상 서버의 전체 순환과 재접속을 확인했습니다. uHandVirtualServer와 실물 uHandServer에서 손동작·LED·부저·누락 표시·준비 자세 복귀를 검증했고, 실물 재시험에서 손가락·손목, LED, 부저, 종료 상태를 관찰했습니다. 실제 암밴드와 최종 공연 파일을 연결한 인형극 리허설은 두 파트 합류 후 진행합니다.
+Windows에서 별도 패키지 없는 파트 2 실행, 설정 복구, 3초 입력 감시, 가상 서버의 전체 순환과 재접속을 확인했습니다. uHandVirtualServer와 실물 uHandServer에서 손동작·LED·부저·누락 표시·준비 자세 복귀를 검증했고, 실물 재시험에서 손가락·손목, LED, 부저, 종료 상태를 관찰했습니다. 파트 1은 테스트 8개(합성 신호로 분류·전달·암밴드 두절·재연결, 전달받은 모델 실행, 설정)와, 녹화한 암밴드 신호를 재생해 손짓 → 요청 ID → 장면 재생이 이어지는 것을 가짜 서버로 확인했습니다(2026-11-28). 실제 암밴드를 연결한 실행과 인형극 리허설은 아직 확인하지 못했습니다. `emg_thread/sensor/`는 sichiray-emg-studio(MIT, `emg_thread/sensor/LICENSE.studio`)의 수신 코드입니다.
 
 ## 프로젝트 팀
 
