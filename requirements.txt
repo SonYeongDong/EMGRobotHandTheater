@@ -1,0 +1,5 @@
+# Part 1 (EMG classification). Part 2 alone needs none of these.
+numpy>=1.24
+pyserial>=3.5
+scikit-learn>=1.6
+joblib>=1.3
